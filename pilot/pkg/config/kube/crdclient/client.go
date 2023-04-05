@@ -51,6 +51,7 @@ import (
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/watcher/crdwatcher"
 	"istio.io/istio/pkg/queue"
+	"istio.io/istio/pkg/util/sets"
 	"istio.io/pkg/log"
 )
 
@@ -68,6 +69,8 @@ type Client struct {
 
 	// revision for this control plane instance. We will only read configs that match this revision.
 	revision string
+
+	discoveryRevisions sets.Set[string]
 
 	// kinds keeps track of all cache handlers for known types
 	kinds   map[config.GroupVersionKind]*cacheHandler
@@ -91,10 +94,11 @@ type Client struct {
 }
 
 type Option struct {
-	Revision         string
-	DomainSuffix     string
-	Identifier       string
-	NamespacesFilter func(obj interface{}) bool
+	Revision           string
+	DiscoveryRevisions sets.Set[string]
+	DomainSuffix       string
+	Identifier         string
+	NamespacesFilter   func(obj interface{}) bool
 }
 
 var _ model.ConfigStoreController = &Client{}
@@ -159,6 +163,8 @@ func NewForSchemas(client kube.Client, opts Option, schemas collection.Schemas) 
 			gvk.KubernetesGateway: newWaiter(),
 			gvk.GatewayClass:      newWaiter(),
 		},
+
+		discoveryRevisions: opts.DiscoveryRevisions,
 	}
 
 	out.crdWatcher.AddCallBack(func(name string) {
@@ -321,7 +327,11 @@ func (cl *Client) List(kind config.GroupVersionKind, namespace string) []config.
 }
 
 func (cl *Client) objectInRevision(o *config.Config) bool {
-	return config.ObjectInRevision(o, cl.revision)
+	discoveryRevisions := cl.discoveryRevisions
+	if discoveryRevisions.Len() == 0 {
+		discoveryRevisions = sets.New(cl.revision)
+	}
+	return config.ObjectInRevisions(o, discoveryRevisions)
 }
 
 func (cl *Client) allKinds() []*cacheHandler {

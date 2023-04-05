@@ -247,6 +247,8 @@ func (s *Server) initConfigSources(args *PilotArgs) (err error) {
 					// to secure the connection between istiod and remote xds server.
 					grpc.WithTransportCredentials(insecure.NewCredentials()),
 				},
+
+				DiscoveryRevisions: args.DiscoveryRevisions,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to dial XDS %s %v", configSource.Address, err)
@@ -345,6 +347,8 @@ func (s *Server) makeKubeConfigController(args *PilotArgs) (*crdclient.Client, e
 		Revision:     args.Revision,
 		DomainSuffix: args.RegistryOptions.KubeOptions.DomainSuffix,
 		Identifier:   "crd-controller",
+
+		DiscoveryRevisions: args.DiscoveryRevisions,
 	}
 	if args.RegistryOptions.KubeOptions.DiscoveryNamespacesFilter != nil {
 		opts.NamespacesFilter = args.RegistryOptions.KubeOptions.DiscoveryNamespacesFilter.Filter

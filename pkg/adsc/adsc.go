@@ -58,6 +58,7 @@ import (
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/pkg/util/protomarshal"
+	"istio.io/istio/pkg/util/sets"
 	"istio.io/pkg/log"
 )
 
@@ -77,6 +78,8 @@ type Config struct {
 
 	// Revision for this control plane instance. We will only read configs that match this revision.
 	Revision string
+
+	DiscoveryRevisions sets.Set[string]
 
 	// Meta includes additional metadata for the node
 	Meta *pstruct.Struct
@@ -621,7 +624,7 @@ func (a *ADSC) mcpToPilot(m *mcp.Resource) (*config.Config, error) {
 		},
 	}
 
-	if !config.ObjectInRevision(c, a.cfg.Revision) { // In case upstream does not support rev in node meta.
+	if !config.ObjectInRevisions(c, a.cfg.DiscoveryRevisions) { // In case upstream does not support rev in node meta.
 		return nil, nil
 	}
 

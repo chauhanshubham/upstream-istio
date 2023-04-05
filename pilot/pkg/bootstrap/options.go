@@ -17,12 +17,14 @@ package bootstrap
 import (
 	"crypto/tls"
 	"fmt"
+	"strings"
 	"time"
 
 	"istio.io/istio/pilot/pkg/features"
 	kubecontroller "istio.io/istio/pilot/pkg/serviceregistry/kube/controller"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/keepalive"
+	"istio.io/istio/pkg/util/sets"
 	"istio.io/pkg/ctrlz"
 	"istio.io/pkg/env"
 )
@@ -56,6 +58,7 @@ type PilotArgs struct {
 	PodName            string
 	Namespace          string
 	Revision           string
+	DiscoveryRevisions sets.Set[string]
 	MeshConfigFile     string
 	NetworksConfigFile string
 	RegistryOptions    RegistryOptions
@@ -121,6 +124,8 @@ var (
 // and is the value used by the "istio.io/rev" label.
 var Revision = env.Register("REVISION", "", "").Get()
 
+var DiscoveryRevisions = env.RegisterStringVar("DISCOVERY_REVISIONS", "", "").Get()
+
 // NewPilotArgs constructs pilotArgs with default values.
 func NewPilotArgs(initFuncs ...func(*PilotArgs)) *PilotArgs {
 	p := &PilotArgs{}
@@ -141,6 +146,10 @@ func (p *PilotArgs) applyDefaults() {
 	p.Namespace = PodNamespace
 	p.PodName = PodName
 	p.Revision = Revision
+	p.DiscoveryRevisions = sets.New(strings.Split(strings.ReplaceAll(DiscoveryRevisions, " ", ""), ",")...)
+	if len(p.DiscoveryRevisions) == 0 && p.Revision != "" {
+		p.DiscoveryRevisions = sets.New(p.Revision)
+	}
 	p.JwtRule = JwtRule
 	p.KeepaliveOptions = keepalive.DefaultOption()
 	p.RegistryOptions.DistributionTrackingEnabled = features.EnableDistributionTracking
